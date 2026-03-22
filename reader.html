@@ -1,0 +1,1240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Progressive Reveal Reader</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 20px;
+            line-height: 1.8;
+            color: #333;
+            background: #fafafa;
+            overflow-x: hidden;
+        }
+
+        #file-picker {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        #file-picker h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            color: #222;
+        }
+
+        #file-picker p {
+            font-size: 1.1rem;
+            color: #666;
+            margin-bottom: 2rem;
+        }
+
+        #file-input {
+            padding: 1rem 2rem;
+            font-size: 1.1rem;
+            font-family: Georgia, serif;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+            cursor: pointer;
+            background: white;
+            transition: all 0.3s ease;
+        }
+
+        #file-input:hover {
+            border-color: #888;
+            background: #f5f5f5;
+        }
+
+        #reader {
+            display: none;
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #chapter-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1.5rem 2rem;
+            text-align: center;
+            font-size: 0.95rem;
+            color: #666;
+            border-bottom: 1px solid #e0e0e0;
+            z-index: 100;
+            font-style: italic;
+        }
+
+        #content {
+            position: fixed;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            max-width: 650px;
+            display: flex;
+            flex-direction: column-reverse;
+            align-items: center;
+            pointer-events: none;
+        }
+
+        .sentence-wrapper {
+            width: 100%;
+            text-align: center;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+            padding: 0.5rem 2rem;
+            display: block;
+        }
+
+        .sentence-wrapper.slide-up {
+            animation: slideUp 0.3s ease forwards;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        /* Paragraph mode styles */
+        .paragraph-wrapper {
+            width: 100%;
+            text-align: center;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+            padding: 1rem 2rem;
+            display: block;
+        }
+
+        .paragraph-content {
+            display: block;
+        }
+
+        /* Paragraph break indicator */
+        .paragraph-break {
+            display: block;
+            height: 0.5rem;
+        }
+
+        .sentence {
+            display: inline;
+        }
+
+        .sentence.past {
+            color: #bbb;
+        }
+
+        .sentence.current {
+            color: #000;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+
+        .sentence.future {
+            display: none;
+        }
+
+        .sentence.heading {
+            font-weight: bold;
+            display: block;
+        }
+
+        #progress-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            text-align: center;
+            font-size: 0.85rem;
+            color: #888;
+            border-top: 1px solid #e0e0e0;
+            z-index: 100;
+        }
+
+        #progress-info {
+            margin-bottom: 0.75rem;
+            font-style: italic;
+        }
+
+        #progress-track {
+            width: 100%;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #666, #333);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        #progress-percentage {
+            margin-top: 0.5rem;
+            font-size: 0.8rem;
+            color: #999;
+        }
+
+        /* Preserve markdown formatting */
+        .sentence strong {
+            font-weight: bold;
+        }
+
+        .sentence em {
+            font-style: italic;
+        }
+
+        .sentence code {
+            font-family: 'Courier New', monospace;
+            background: #f0f0f0;
+            padding: 0.2rem 0.4rem;
+            border-radius: 3px;
+            font-size: 0.9em;
+        }
+
+        .sentence a {
+            color: #0066cc;
+            text-decoration: none;
+        }
+
+        .sentence a:hover {
+            text-decoration: underline;
+        }
+
+        /* Settings Button */
+        #settings-button {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid #ccc;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            font-size: 24px;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 101;
+            transition: all 0.3s ease;
+        }
+
+        #settings-button:hover {
+            background: rgba(255, 255, 255, 1);
+            border-color: #888;
+            transform: rotate(45deg);
+        }
+
+        /* Settings Panel */
+        #settings-panel {
+            position: fixed;
+            top: 0;
+            right: -350px;
+            width: 350px;
+            height: 100vh;
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(10px);
+            box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+            z-index: 102;
+            padding: 2rem;
+            overflow-y: auto;
+            transition: right 0.3s ease;
+        }
+
+        #settings-panel.open {
+            right: 0;
+        }
+
+        #settings-panel h2 {
+            margin-bottom: 2rem;
+            font-size: 1.5rem;
+            color: #333;
+        }
+
+        .setting-group {
+            margin-bottom: 2rem;
+        }
+
+        .setting-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.95rem;
+            color: #666;
+            font-weight: bold;
+        }
+
+        .setting-group input[type="range"] {
+            width: 100%;
+            margin-bottom: 0.5rem;
+        }
+
+        .setting-value {
+            display: inline-block;
+            font-size: 0.9rem;
+            color: #888;
+            margin-left: 0.5rem;
+        }
+
+        .theme-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 0.5rem;
+        }
+
+        .theme-button {
+            padding: 0.75rem;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            font-family: Georgia, serif;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .theme-button:hover {
+            border-color: #888;
+        }
+
+        .theme-button.active {
+            border-color: #333;
+            background: #f5f5f5;
+            font-weight: bold;
+        }
+
+        /* Reading Modes */
+        body.sepia {
+            background: #f4ecd8;
+            color: #5b4636;
+        }
+
+        body.sepia #chapter-bar,
+        body.sepia #progress-bar,
+        body.sepia #settings-button,
+        body.sepia #settings-panel {
+            background: rgba(244, 236, 216, 0.95);
+            color: #5b4636;
+        }
+
+        body.sepia #chapter-bar,
+        body.sepia #progress-bar {
+            border-color: #d3c4a8;
+        }
+
+        body.sepia #progress-track {
+            background: #d3c4a8;
+        }
+
+        body.sepia #progress-fill {
+            background: linear-gradient(90deg, #8b7355, #5b4636);
+        }
+
+        body.sepia #progress-percentage {
+            color: #a89a7e;
+        }
+
+        body.sepia .sentence.past {
+            color: #a89a7e;
+        }
+
+        body.sepia .sentence.current {
+            color: #3d2f1f;
+        }
+
+        body.sepia .sentence code {
+            background: #e8ddc0;
+        }
+
+        body.sepia .theme-button {
+            background: #f4ecd8;
+            border-color: #d3c4a8;
+        }
+
+        body.sepia .theme-button.active {
+            background: #e8ddc0;
+            border-color: #5b4636;
+        }
+
+        body.night {
+            background: #1a1a1a;
+            color: #d4d4d4;
+        }
+
+        body.night #chapter-bar,
+        body.night #progress-bar,
+        body.night #settings-button,
+        body.night #settings-panel {
+            background: rgba(30, 30, 30, 0.95);
+            color: #d4d4d4;
+            border-color: #333;
+        }
+
+        body.night #progress-track {
+            background: #333;
+        }
+
+        body.night #progress-fill {
+            background: linear-gradient(90deg, #888, #d4d4d4);
+        }
+
+        body.night #progress-percentage {
+            color: #888;
+        }
+
+        body.night .sentence.past {
+            color: #666;
+        }
+
+        body.night .sentence.current {
+            color: #ffffff;
+        }
+
+        body.night .sentence code {
+            background: #2a2a2a;
+            color: #d4d4d4;
+        }
+
+        body.night .sentence a {
+            color: #6eb3ff;
+        }
+
+        body.night .theme-button {
+            background: #2a2a2a;
+            border-color: #444;
+            color: #d4d4d4;
+        }
+
+        body.night .theme-button:hover {
+            border-color: #666;
+        }
+
+        body.night .theme-button.active {
+            background: #333;
+            border-color: #d4d4d4;
+        }
+
+        body.night #settings-button {
+            border-color: #444;
+        }
+
+        body.night #settings-button:hover {
+            border-color: #666;
+        }
+
+        body.night #file-input {
+            background: #2a2a2a;
+            color: #d4d4d4;
+            border-color: #444;
+        }
+
+        body.night #file-input:hover {
+            background: #333;
+            border-color: #666;
+        }
+
+        body.night h1, body.night h2 {
+            color: #f0f0f0;
+        }
+
+        body.night p {
+            color: #aaa;
+        }
+    </style>
+</head>
+<body>
+    <div id="file-picker">
+        <h1>Progressive Reveal Reader</h1>
+        <p>Select a markdown file to begin reading</p>
+        <input type="file" id="file-input" accept=".md,.markdown,.txt" />
+    </div>
+
+    <div id="reader">
+        <div id="chapter-bar">Chapter</div>
+        <button id="settings-button">⚙</button>
+        <div id="settings-panel">
+            <h2>Reading Settings</h2>
+
+            <div class="setting-group">
+                <label>Font Size <span class="setting-value" id="font-size-value">20px</span></label>
+                <input type="range" id="font-size" min="14" max="32" value="20" step="1">
+            </div>
+
+            <div class="setting-group">
+                <label>Line Height <span class="setting-value" id="line-height-value">1.8</span></label>
+                <input type="range" id="line-height" min="1.2" max="2.5" value="1.8" step="0.1">
+            </div>
+
+            <div class="setting-group">
+                <label>Past Sentences Visible <span class="setting-value" id="past-sentences-value">3</span></label>
+                <input type="range" id="past-sentences" min="1" max="10" value="3" step="1">
+            </div>
+
+            <div class="setting-group">
+                <label>Reading Style</label>
+                <div class="theme-buttons">
+                    <button class="theme-button active" data-mode="sentence">Sentence</button>
+                    <button class="theme-button" data-mode="paragraph">Paragraph</button>
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <label>Color Theme</label>
+                <div class="theme-buttons">
+                    <button class="theme-button active" data-theme="default">Light</button>
+                    <button class="theme-button" data-theme="sepia">Sepia</button>
+                    <button class="theme-button" data-theme="night">Night</button>
+                </div>
+            </div>
+        </div>
+        <div id="content"></div>
+        <div id="progress-bar">
+            <div id="progress-info">Chapter</div>
+            <div id="progress-track">
+                <div id="progress-fill"></div>
+            </div>
+            <div id="progress-percentage">0%</div>
+        </div>
+    </div>
+
+    <script>
+        class ProgressiveReader {
+            constructor() {
+                this.sentences = [];
+                this.chapters = [];
+                this.currentIndex = 0;
+                this.fileName = '';
+                this.settings = {
+                    fontSize: 20,
+                    lineHeight: 1.8,
+                    theme: 'default',
+                    pastSentences: 3,
+                    readingMode: 'sentence'
+                };
+                this.elements = {
+                    filePicker: document.getElementById('file-picker'),
+                    fileInput: document.getElementById('file-input'),
+                    reader: document.getElementById('reader'),
+                    chapterBar: document.getElementById('chapter-bar'),
+                    content: document.getElementById('content'),
+                    progressBar: document.getElementById('progress-bar'),
+                    progressInfo: document.getElementById('progress-info'),
+                    progressFill: document.getElementById('progress-fill'),
+                    progressPercentage: document.getElementById('progress-percentage'),
+                    settingsButton: document.getElementById('settings-button'),
+                    settingsPanel: document.getElementById('settings-panel'),
+                    fontSizeSlider: document.getElementById('font-size'),
+                    fontSizeValue: document.getElementById('font-size-value'),
+                    lineHeightSlider: document.getElementById('line-height'),
+                    lineHeightValue: document.getElementById('line-height-value'),
+                    pastSentencesSlider: document.getElementById('past-sentences'),
+                    pastSentencesValue: document.getElementById('past-sentences-value'),
+                    themeButtons: document.querySelectorAll('.theme-button[data-theme]'),
+                    modeButtons: document.querySelectorAll('.theme-button[data-mode]')
+                };
+                this.init();
+            }
+
+            init() {
+                this.elements.fileInput.addEventListener('change', (e) => this.handleFileSelect(e));
+                document.addEventListener('keydown', (e) => this.handleKeyPress(e));
+                this.initSettings();
+                this.loadFromStorage();
+            }
+
+            initSettings() {
+                // Settings button toggle
+                this.elements.settingsButton.addEventListener('click', () => {
+                    this.elements.settingsPanel.classList.toggle('open');
+                });
+
+                // Close settings when clicking outside
+                document.addEventListener('click', (e) => {
+                    if (!this.elements.settingsPanel.contains(e.target) &&
+                        !this.elements.settingsButton.contains(e.target) &&
+                        this.elements.settingsPanel.classList.contains('open')) {
+                        this.elements.settingsPanel.classList.remove('open');
+                    }
+                });
+
+                // Font size slider
+                this.elements.fontSizeSlider.addEventListener('input', (e) => {
+                    this.settings.fontSize = parseInt(e.target.value);
+                    this.applyFontSize();
+                    this.saveSettings();
+                });
+
+                // Line height slider
+                this.elements.lineHeightSlider.addEventListener('input', (e) => {
+                    this.settings.lineHeight = parseFloat(e.target.value);
+                    this.applyLineHeight();
+                    this.saveSettings();
+                });
+
+                // Past sentences slider
+                this.elements.pastSentencesSlider.addEventListener('input', (e) => {
+                    this.settings.pastSentences = parseInt(e.target.value);
+                    this.applyPastSentences();
+                    this.saveSettings();
+                    this.render();
+                });
+
+                // Theme buttons
+                this.elements.themeButtons.forEach(button => {
+                    button.addEventListener('click', () => {
+                        this.settings.theme = button.dataset.theme;
+                        this.applyTheme();
+                        this.saveSettings();
+                    });
+                });
+
+                // Reading mode buttons
+                this.elements.modeButtons.forEach(button => {
+                    button.addEventListener('click', () => {
+                        this.settings.readingMode = button.dataset.mode;
+                        this.applyReadingMode();
+                        this.saveSettings();
+                        this.render();
+                    });
+                });
+
+                // Load saved settings
+                this.loadSettings();
+                this.applyAllSettings();
+            }
+
+            applyFontSize() {
+                document.body.style.fontSize = `${this.settings.fontSize}px`;
+                this.elements.fontSizeValue.textContent = `${this.settings.fontSize}px`;
+
+                // Update specific sentence sizes proportionally
+                const baseSize = this.settings.fontSize;
+                const root = document.documentElement;
+                root.style.setProperty('--base-font-size', `${baseSize}px`);
+                root.style.setProperty('--past-font-size', `${baseSize}px`);
+                root.style.setProperty('--current-font-size', `${baseSize * 1.2}px`);
+                root.style.setProperty('--heading-font-size', `${baseSize * 1.4}px`);
+                root.style.setProperty('--heading-past-font-size', `${baseSize * 1.2}px`);
+
+                // Apply to elements directly since we're using inline styles
+                document.querySelectorAll('.sentence.past').forEach(el => {
+                    if (!el.classList.contains('heading')) {
+                        el.style.fontSize = `${baseSize}px`;
+                    } else {
+                        el.style.fontSize = `${baseSize * 1.2}px`;
+                    }
+                });
+
+                const current = document.querySelector('.sentence.current');
+                if (current) {
+                    current.style.fontSize = `${baseSize * 1.2}px`;
+                }
+
+                document.querySelectorAll('.sentence.heading').forEach(el => {
+                    if (!el.classList.contains('past')) {
+                        el.style.fontSize = `${baseSize * 1.4}px`;
+                    }
+                });
+            }
+
+            applyLineHeight() {
+                document.body.style.lineHeight = this.settings.lineHeight;
+                this.elements.lineHeightValue.textContent = this.settings.lineHeight.toFixed(1);
+            }
+
+            applyPastSentences() {
+                this.elements.pastSentencesValue.textContent = this.settings.pastSentences;
+            }
+
+            applyReadingMode() {
+                // Update active button
+                this.elements.modeButtons.forEach(button => {
+                    if (button.dataset.mode === this.settings.readingMode) {
+                        button.classList.add('active');
+                    } else {
+                        button.classList.remove('active');
+                    }
+                });
+            }
+
+            applyTheme() {
+                // Remove all theme classes
+                document.body.classList.remove('sepia', 'night');
+
+                // Add selected theme class
+                if (this.settings.theme !== 'default') {
+                    document.body.classList.add(this.settings.theme);
+                }
+
+                // Update active button
+                this.elements.themeButtons.forEach(button => {
+                    if (button.dataset.theme === this.settings.theme) {
+                        button.classList.add('active');
+                    } else {
+                        button.classList.remove('active');
+                    }
+                });
+            }
+
+            applyAllSettings() {
+                this.applyFontSize();
+                this.applyLineHeight();
+                this.applyPastSentences();
+                this.applyReadingMode();
+                this.applyTheme();
+            }
+
+            saveSettings() {
+                localStorage.setItem('readerSettings', JSON.stringify(this.settings));
+            }
+
+            loadSettings() {
+                const saved = localStorage.getItem('readerSettings');
+                if (saved) {
+                    try {
+                        const parsed = JSON.parse(saved);
+                        this.settings = { ...this.settings, ...parsed };
+
+                        // Update UI controls
+                        this.elements.fontSizeSlider.value = this.settings.fontSize;
+                        this.elements.lineHeightSlider.value = this.settings.lineHeight;
+                        this.elements.pastSentencesSlider.value = this.settings.pastSentences;
+                    } catch (e) {
+                        console.error('Failed to load settings:', e);
+                    }
+                }
+            }
+
+            async handleFileSelect(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                this.fileName = file.name;
+                const text = await file.text();
+                this.processMarkdown(text);
+                this.showReader();
+                this.render();
+            }
+
+            processMarkdown(text) {
+                // Parse markdown to HTML
+                const html = marked.parse(text);
+
+                // Create a temporary container to parse the HTML
+                const temp = document.createElement('div');
+                temp.innerHTML = html;
+
+                this.sentences = [];
+                this.chapters = [];
+
+                // Process each node
+                this.processNode(temp);
+
+                // Remove empty sentences
+                this.sentences = this.sentences.filter(s => s.text.trim().length > 0);
+
+                // If no sentences, add a placeholder
+                if (this.sentences.length === 0) {
+                    this.sentences.push({ text: 'No content found', isHeading: false, level: 0, chapterIndex: 0 });
+                }
+            }
+
+            processNode(node, currentChapterIndex = 0, currentParagraphId = 0) {
+                for (let child of node.childNodes) {
+                    if (child.nodeType === Node.ELEMENT_NODE) {
+                        // Check if it's a heading
+                        const headingMatch = child.tagName.match(/^H([1-6])$/);
+                        if (headingMatch) {
+                            const level = parseInt(headingMatch[1]);
+                            const headingText = child.innerHTML.trim();
+
+                            // Add heading as a chapter marker
+                            const chapterIndex = this.chapters.length;
+                            this.chapters.push({
+                                text: this.stripHtmlTags(headingText),
+                                level: level,
+                                sentenceIndex: this.sentences.length
+                            });
+
+                            // Add heading as a sentence
+                            this.sentences.push({
+                                text: headingText,
+                                isHeading: true,
+                                level: level,
+                                chapterIndex: chapterIndex,
+                                paragraphId: currentParagraphId++
+                            });
+
+                            currentChapterIndex = chapterIndex;
+                        } else if (child.tagName === 'P' || child.tagName === 'LI') {
+                            // Process paragraph or list item
+                            const sentencesFromElement = this.splitIntoSentences(child.innerHTML);
+                            const paragraphId = currentParagraphId++;
+                            sentencesFromElement.forEach(sentence => {
+                                this.sentences.push({
+                                    text: sentence,
+                                    isHeading: false,
+                                    level: 0,
+                                    chapterIndex: currentChapterIndex,
+                                    paragraphId: paragraphId
+                                });
+                            });
+                        } else if (child.tagName === 'UL' || child.tagName === 'OL') {
+                            // Recursively process lists
+                            currentParagraphId = this.processNode(child, currentChapterIndex, currentParagraphId);
+                        } else {
+                            // For other elements, try to extract text
+                            const text = child.innerHTML.trim();
+                            if (text) {
+                                const sentencesFromElement = this.splitIntoSentences(text);
+                                const paragraphId = currentParagraphId++;
+                                sentencesFromElement.forEach(sentence => {
+                                    this.sentences.push({
+                                        text: sentence,
+                                        isHeading: false,
+                                        level: 0,
+                                        chapterIndex: currentChapterIndex,
+                                        paragraphId: paragraphId
+                                    });
+                                });
+                            }
+                        }
+                    }
+                }
+                return currentParagraphId;
+            }
+
+            splitIntoSentences(text) {
+                // Remove extra whitespace
+                text = text.trim();
+                if (!text) return [];
+
+                // Split on sentence boundaries while preserving abbreviations
+                // This regex looks for . ! ? followed by space or end, but not after common abbreviations
+                const sentences = [];
+                const parts = text.split(/([.!?]+(?:\s+|$))/);
+
+                let currentSentence = '';
+                for (let i = 0; i < parts.length; i++) {
+                    currentSentence += parts[i];
+
+                    // Check if we have a sentence ending
+                    if (i % 2 === 1) { // Odd indices are the delimiters
+                        const trimmed = currentSentence.trim();
+
+                        // Check for abbreviations at the end
+                        const isAbbreviation = /\b(Mr|Mrs|Ms|Dr|Prof|Sr|Jr|vs|etc|e\.g|i\.e|Fig|Vol|Inc|Ltd|Corp|Ave|St|Rd|Blvd)\.\s*$/i.test(trimmed);
+
+                        if (!isAbbreviation && trimmed) {
+                            sentences.push(trimmed);
+                            currentSentence = '';
+                        }
+                    }
+                }
+
+                // Add any remaining text
+                if (currentSentence.trim()) {
+                    sentences.push(currentSentence.trim());
+                }
+
+                return sentences.filter(s => s.length > 0);
+            }
+
+            stripHtmlTags(html) {
+                const temp = document.createElement('div');
+                temp.innerHTML = html;
+                return temp.textContent || temp.innerText || '';
+            }
+
+            getCurrentChapter() {
+                if (this.chapters.length === 0) return 'Reading';
+
+                const currentSentence = this.sentences[this.currentIndex];
+                if (!currentSentence) return 'Reading';
+
+                const chapterIndex = currentSentence.chapterIndex;
+                if (chapterIndex >= 0 && chapterIndex < this.chapters.length) {
+                    return this.chapters[chapterIndex].text;
+                }
+
+                return 'Reading';
+            }
+
+            // Group sentences into paragraphs
+            getParagraphs() {
+                const paragraphs = [];
+                let currentParagraphId = null;
+                let currentParagraph = null;
+
+                this.sentences.forEach((sentence, index) => {
+                    if (sentence.paragraphId !== currentParagraphId) {
+                        if (currentParagraph) {
+                            paragraphs.push(currentParagraph);
+                        }
+                        currentParagraphId = sentence.paragraphId;
+                        currentParagraph = {
+                            paragraphId: sentence.paragraphId,
+                            sentences: [],
+                            startIndex: index,
+                            endIndex: index,
+                            isHeading: sentence.isHeading
+                        };
+                    }
+                    currentParagraph.sentences.push({ ...sentence, index });
+                    currentParagraph.endIndex = index;
+                });
+
+                if (currentParagraph) {
+                    paragraphs.push(currentParagraph);
+                }
+
+                return paragraphs;
+            }
+
+            // Find which paragraph contains the current sentence
+            getCurrentParagraphIndex() {
+                const paragraphs = this.getParagraphs();
+                for (let i = 0; i < paragraphs.length; i++) {
+                    const p = paragraphs[i];
+                    if (this.currentIndex >= p.startIndex && this.currentIndex <= p.endIndex) {
+                        return i;
+                    }
+                }
+                return 0;
+            }
+
+            showReader() {
+                this.elements.filePicker.style.display = 'none';
+                this.elements.reader.style.display = 'block';
+                this.elements.settingsButton.style.display = 'flex';
+            }
+
+            showFilePicker() {
+                this.elements.reader.style.display = 'none';
+                this.elements.filePicker.style.display = 'flex';
+                this.elements.fileInput.value = '';
+                this.elements.settingsButton.style.display = 'none';
+                this.elements.settingsPanel.classList.remove('open');
+            }
+
+            render() {
+                if (this.settings.readingMode === 'paragraph') {
+                    this.renderParagraphMode();
+                } else {
+                    this.renderSentenceMode();
+                }
+
+                // Update chapter bar
+                this.elements.chapterBar.textContent = this.getCurrentChapter();
+
+                // Update progress bar
+                const percentage = this.sentences.length > 0
+                    ? Math.round(((this.currentIndex + 1) / this.sentences.length) * 100)
+                    : 0;
+
+                this.elements.progressInfo.textContent = this.getCurrentChapter();
+                this.elements.progressFill.style.width = `${percentage}%`;
+                this.elements.progressPercentage.textContent = `${percentage}% • ${this.currentIndex + 1} / ${this.sentences.length}`;
+
+                // Save to localStorage
+                this.saveToStorage();
+            }
+
+            renderSentenceMode() {
+                // Clear content
+                this.elements.content.innerHTML = '';
+
+                // Calculate which sentences to show
+                const startIndex = Math.max(0, this.currentIndex - this.settings.pastSentences);
+                const endIndex = this.currentIndex + 1;
+
+                // Render sentences in reverse order (since we're using flex-direction: column-reverse)
+                for (let i = endIndex - 1; i >= startIndex; i--) {
+                    const sentence = this.sentences[i];
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'sentence-wrapper';
+
+                    const span = document.createElement('span');
+                    span.className = 'sentence';
+                    span.innerHTML = sentence.text;
+
+                    if (sentence.isHeading) {
+                        span.classList.add('heading');
+                    }
+
+                    // Apply state classes
+                    if (i < this.currentIndex) {
+                        span.classList.add('past');
+
+                        // Calculate opacity based on distance from current
+                        const distance = this.currentIndex - i;
+                        let opacity;
+                        if (distance === 1) {
+                            opacity = 0.5;
+                        } else if (distance === 2) {
+                            opacity = 0.3;
+                        } else if (distance === 3) {
+                            opacity = 0.2;
+                        } else {
+                            opacity = 0.1;
+                        }
+                        wrapper.style.opacity = opacity;
+                    } else if (i === this.currentIndex) {
+                        span.classList.add('current');
+                        span.id = 'current-sentence';
+                        wrapper.style.opacity = 1;
+                    }
+
+                    wrapper.appendChild(span);
+                    this.elements.content.appendChild(wrapper);
+                }
+            }
+
+            renderParagraphMode() {
+                // Clear content
+                this.elements.content.innerHTML = '';
+
+                const paragraphs = this.getParagraphs();
+
+                // Calculate which sentences to show (3-4 sentences back from current)
+                const contextSize = this.settings.pastSentences;
+                const startIndex = Math.max(0, this.currentIndex - contextSize);
+                const endIndex = this.currentIndex + 1;
+
+                // Group visible sentences by paragraph
+                const visibleSentencesMap = new Map();
+
+                for (let i = startIndex; i < endIndex; i++) {
+                    const sentence = this.sentences[i];
+                    const paraId = sentence.paragraphId;
+
+                    if (!visibleSentencesMap.has(paraId)) {
+                        visibleSentencesMap.set(paraId, []);
+                    }
+                    visibleSentencesMap.get(paraId).push({
+                        ...sentence,
+                        index: i,
+                        isCurrent: i === this.currentIndex
+                    });
+                }
+
+                // Get paragraphs in order and render them in reverse
+                const paragraphIds = Array.from(visibleSentencesMap.keys()).sort((a, b) => {
+                    const aFirst = visibleSentencesMap.get(a)[0].index;
+                    const bFirst = visibleSentencesMap.get(b)[0].index;
+                    return bFirst - aFirst; // Reverse order for column-reverse
+                });
+
+                paragraphIds.forEach((paraId, mapIndex) => {
+                    const sentencesInPara = visibleSentencesMap.get(paraId);
+
+                    // Create paragraph wrapper
+                    const paraWrapper = document.createElement('div');
+                    paraWrapper.className = 'paragraph-wrapper';
+
+                    const paraContent = document.createElement('div');
+                    paraContent.className = 'paragraph-content';
+
+                    // Find the full paragraph to determine if we're showing partial content
+                    const fullParagraph = paragraphs.find(p => p.paragraphId === paraId);
+                    const isPartialStart = fullParagraph && sentencesInPara[0].index > fullParagraph.startIndex;
+
+                    // Add ellipsis if we're starting mid-paragraph
+                    if (isPartialStart && !sentencesInPara[0].isHeading) {
+                        const ellipsis = document.createElement('span');
+                        ellipsis.className = 'sentence past';
+                        ellipsis.innerHTML = '...';
+                        paraContent.appendChild(ellipsis);
+                        paraContent.appendChild(document.createTextNode(' '));
+                    }
+
+                    // Render visible sentences in this paragraph
+                    sentencesInPara.forEach((sentenceData, sentIdx) => {
+                        const span = document.createElement('span');
+                        span.className = 'sentence';
+                        span.innerHTML = sentenceData.text;
+
+                        if (sentenceData.isHeading) {
+                            span.classList.add('heading');
+                        }
+
+                        // Apply state based on sentence index
+                        if (sentenceData.isCurrent) {
+                            span.classList.add('current');
+                            span.id = 'current-sentence';
+                        } else {
+                            span.classList.add('past');
+                        }
+
+                        paraContent.appendChild(span);
+
+                        // Add space between sentences (except for headings)
+                        if (!sentenceData.isHeading && sentIdx < sentencesInPara.length - 1) {
+                            paraContent.appendChild(document.createTextNode(' '));
+                        }
+                    });
+
+                    paraWrapper.appendChild(paraContent);
+                    this.elements.content.appendChild(paraWrapper);
+
+                    // Add paragraph break if this isn't the last (first in visual order) paragraph
+                    if (mapIndex < paragraphIds.length - 1) {
+                        const breakDiv = document.createElement('div');
+                        breakDiv.className = 'paragraph-break';
+                        this.elements.content.appendChild(breakDiv);
+                    }
+                });
+
+                // Apply opacity fading to older content
+                const wrappers = this.elements.content.querySelectorAll('.paragraph-wrapper');
+                wrappers.forEach((wrapper, index) => {
+                    // Check if this wrapper contains the current sentence
+                    const containsCurrent = wrapper.querySelector('#current-sentence') !== null;
+
+                    if (containsCurrent) {
+                        // Wrapper with current sentence should be fully opaque
+                        wrapper.style.opacity = 1;
+                    } else {
+                        // The last wrapper (visually at bottom/oldest) should be most faded
+                        // Count distance from the wrapper with current sentence
+                        const currentWrapperIndex = Array.from(wrappers).findIndex(w =>
+                            w.querySelector('#current-sentence') !== null
+                        );
+                        const distance = currentWrapperIndex - index;
+                        let opacity = 1;
+
+                        if (distance === 1) {
+                            opacity = 0.5;
+                        } else if (distance === 2) {
+                            opacity = 0.3;
+                        } else if (distance > 2) {
+                            opacity = 0.2;
+                        }
+
+                        wrapper.style.opacity = opacity;
+                    }
+                });
+            }
+
+            handleKeyPress(event) {
+                if (this.elements.reader.style.display === 'none') return;
+
+                switch(event.key) {
+                    case ' ':
+                    case 'ArrowRight':
+                        event.preventDefault();
+                        this.nextSentence();
+                        break;
+                    case 'ArrowLeft':
+                        event.preventDefault();
+                        this.previousSentence();
+                        break;
+                    case 'Escape':
+                        event.preventDefault();
+                        this.reset();
+                        break;
+                }
+            }
+
+            nextSentence() {
+                if (this.currentIndex < this.sentences.length - 1) {
+                    // Check if we're moving to a new paragraph
+                    const oldParaIndex = this.getCurrentParagraphIndex();
+                    this.currentIndex++;
+                    const newParaIndex = this.getCurrentParagraphIndex();
+
+                    this.render();
+
+                    // Trigger slide-up animation for sentence mode
+                    if (this.settings.readingMode === 'sentence') {
+                        setTimeout(() => {
+                            const currentElement = document.getElementById('current-sentence');
+                            if (currentElement && currentElement.parentElement) {
+                                currentElement.parentElement.classList.add('slide-up');
+                            }
+                        }, 10);
+                    }
+                    // In paragraph mode, animation is handled by CSS transitions
+                }
+                // Stay on last sentence if at the end
+            }
+
+            previousSentence() {
+                if (this.currentIndex > 0) {
+                    this.currentIndex--;
+                    this.render();
+                }
+            }
+
+            reset() {
+                this.sentences = [];
+                this.chapters = [];
+                this.currentIndex = 0;
+                this.fileName = '';
+                this.clearStorage();
+                this.showFilePicker();
+            }
+
+            saveToStorage() {
+                if (!this.fileName) return;
+
+                const data = {
+                    fileName: this.fileName,
+                    currentIndex: this.currentIndex,
+                    timestamp: Date.now()
+                };
+
+                localStorage.setItem('progressiveReader', JSON.stringify(data));
+            }
+
+            loadFromStorage() {
+                const stored = localStorage.getItem('progressiveReader');
+                if (!stored) return;
+
+                try {
+                    const data = JSON.parse(stored);
+                    // You could potentially auto-load the last file here
+                    // but since we need the file object, we'll just show a message
+                    console.log('Last read:', data.fileName, 'at sentence', data.currentIndex + 1);
+                } catch (e) {
+                    console.error('Failed to load from storage:', e);
+                }
+            }
+
+            clearStorage() {
+                localStorage.removeItem('progressiveReader');
+            }
+        }
+
+        // Initialize the reader
+        const reader = new ProgressiveReader();
+    </script>
+</body>
+</html>
