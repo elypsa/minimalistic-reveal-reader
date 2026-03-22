@@ -82,6 +82,58 @@
             font-style: italic;
         }
 
+        /* Search Bar */
+        #search-bar {
+            position: fixed;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100%);
+            width: 90%;
+            max-width: 600px;
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(10px);
+            padding: 1rem 1.5rem;
+            border-radius: 0 0 8px 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            z-index: 150;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            transition: transform 0.3s ease;
+        }
+
+        #search-bar.open {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        #search-input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            font-family: Georgia, serif;
+            font-size: 1rem;
+            color: #333;
+            outline: none;
+        }
+
+        #search-input::placeholder {
+            color: #999;
+        }
+
+        #search-matches {
+            font-size: 0.85rem;
+            color: #888;
+            white-space: nowrap;
+            font-family: Georgia, serif;
+        }
+
+        /* Search match highlighting */
+        .search-highlight {
+            background: rgba(255, 235, 59, 0.6);
+            padding: 0 2px;
+            border-radius: 2px;
+        }
+
         #content {
             position: fixed;
             top: 40%;
@@ -444,9 +496,22 @@
         body.sepia #settings-button,
         body.sepia #settings-panel,
         body.sepia #toc-button,
-        body.sepia #toc-panel {
-            background: rgba(244, 236, 216, 0.95);
+        body.sepia #toc-panel,
+        body.sepia #search-bar {
+            background: rgba(244, 236, 216, 0.98);
             color: #5b4636;
+        }
+
+        body.sepia #search-input {
+            color: #5b4636;
+        }
+
+        body.sepia #search-input::placeholder {
+            color: #a89a7e;
+        }
+
+        body.sepia #search-matches {
+            color: #8b7355;
         }
 
         body.sepia .toc-item {
@@ -516,10 +581,23 @@
         body.night #settings-button,
         body.night #settings-panel,
         body.night #toc-button,
-        body.night #toc-panel {
-            background: rgba(30, 30, 30, 0.95);
+        body.night #toc-panel,
+        body.night #search-bar {
+            background: rgba(30, 30, 30, 0.98);
             color: #d4d4d4;
             border-color: #333;
+        }
+
+        body.night #search-input {
+            color: #d4d4d4;
+        }
+
+        body.night #search-input::placeholder {
+            color: #666;
+        }
+
+        body.night #search-matches {
+            color: #888;
         }
 
         body.night .toc-item {
@@ -621,6 +699,10 @@
 
     <div id="reader">
         <div id="chapter-bar">Chapter</div>
+        <div id="search-bar">
+            <input type="text" id="search-input" placeholder="Search..." />
+            <span id="search-matches"></span>
+        </div>
         <button id="toc-button">☰</button>
         <button id="settings-button">⚙</button>
         <div id="toc-panel">
@@ -686,6 +768,12 @@
                     pastSentences: 3,
                     readingMode: 'sentence'
                 };
+                this.search = {
+                    query: '',
+                    matches: [],
+                    currentMatchIndex: -1,
+                    isActive: false
+                };
                 this.elements = {
                     filePicker: document.getElementById('file-picker'),
                     fileInput: document.getElementById('file-input'),
@@ -700,6 +788,9 @@
                     tocButton: document.getElementById('toc-button'),
                     tocPanel: document.getElementById('toc-panel'),
                     tocList: document.getElementById('toc-list'),
+                    searchBar: document.getElementById('search-bar'),
+                    searchInput: document.getElementById('search-input'),
+                    searchMatches: document.getElementById('search-matches'),
                     settingsButton: document.getElementById('settings-button'),
                     settingsPanel: document.getElementById('settings-panel'),
                     fontSizeSlider: document.getElementById('font-size'),
@@ -764,6 +855,11 @@
 
                     // Render the new position
                     this.render();
+                });
+
+                // Search input live update
+                this.elements.searchInput.addEventListener('input', (e) => {
+                    this.performSearch(e.target.value);
                 });
 
                 // Font size slider
@@ -1360,7 +1456,7 @@
 
                     const span = document.createElement('span');
                     span.className = 'sentence';
-                    span.innerHTML = sentence.text;
+                    span.innerHTML = this.highlightSearchMatches(sentence.text);
 
                     if (sentence.isHeading) {
                         span.classList.add('heading');
@@ -1456,7 +1552,7 @@
                     sentencesInPara.forEach((sentenceData, sentIdx) => {
                         const span = document.createElement('span');
                         span.className = 'sentence';
-                        span.innerHTML = sentenceData.text;
+                        span.innerHTML = this.highlightSearchMatches(sentenceData.text);
 
                         if (sentenceData.isHeading) {
                             span.classList.add('heading');
@@ -1523,7 +1619,40 @@
             handleKeyPress(event) {
                 if (this.elements.reader.style.display === 'none') return;
 
+                // Handle search-specific keys
+                if (this.search.isActive) {
+                    switch(event.key) {
+                        case 'Escape':
+                            event.preventDefault();
+                            this.closeSearch();
+                            return;
+                        case 'Enter':
+                            event.preventDefault();
+                            if (event.shiftKey) {
+                                this.previousMatch();
+                            } else {
+                                this.nextMatch();
+                            }
+                            return;
+                        case 'n':
+                            event.preventDefault();
+                            this.nextMatch();
+                            return;
+                        case 'N':
+                            event.preventDefault();
+                            this.previousMatch();
+                            return;
+                    }
+                    // Don't process other keys when search is active
+                    return;
+                }
+
+                // Normal navigation keys
                 switch(event.key) {
+                    case '/':
+                        event.preventDefault();
+                        this.openSearch();
+                        break;
                     case ' ':
                     case 'ArrowRight':
                         event.preventDefault();
@@ -1590,6 +1719,96 @@
                 this.fileName = '';
                 this.clearStorage();
                 this.showFilePicker();
+            }
+
+            // Search functionality
+            openSearch() {
+                this.search.isActive = true;
+                this.elements.searchBar.classList.add('open');
+                this.elements.searchInput.focus();
+                this.elements.searchInput.select();
+            }
+
+            closeSearch() {
+                this.search.isActive = false;
+                this.search.query = '';
+                this.search.matches = [];
+                this.search.currentMatchIndex = -1;
+                this.elements.searchBar.classList.remove('open');
+                this.elements.searchInput.value = '';
+                this.elements.searchMatches.textContent = '';
+                // Re-render to remove highlights
+                this.render();
+            }
+
+            performSearch(query) {
+                this.search.query = query.toLowerCase();
+                this.search.matches = [];
+                this.search.currentMatchIndex = -1;
+
+                if (!query.trim()) {
+                    this.elements.searchMatches.textContent = '';
+                    this.render();
+                    return;
+                }
+
+                // Find all matching sentences (case-insensitive, partial match)
+                this.sentences.forEach((sentence, index) => {
+                    const text = this.stripHtmlTags(sentence.text).toLowerCase();
+                    if (text.indexOf(this.search.query) !== -1) {
+                        this.search.matches.push(index);
+                    }
+                });
+
+                // Update match count display
+                if (this.search.matches.length > 0) {
+                    this.search.currentMatchIndex = 0;
+                    this.elements.searchMatches.textContent = `1 / ${this.search.matches.length}`;
+                    // Jump to first match
+                    this.jumpToMatch(0);
+                } else {
+                    this.elements.searchMatches.textContent = 'No matches';
+                    this.render();
+                }
+            }
+
+            nextMatch() {
+                if (this.search.matches.length === 0) return;
+
+                this.search.currentMatchIndex = (this.search.currentMatchIndex + 1) % this.search.matches.length;
+                this.elements.searchMatches.textContent =
+                    `${this.search.currentMatchIndex + 1} / ${this.search.matches.length}`;
+                this.jumpToMatch(this.search.currentMatchIndex);
+            }
+
+            previousMatch() {
+                if (this.search.matches.length === 0) return;
+
+                this.search.currentMatchIndex =
+                    (this.search.currentMatchIndex - 1 + this.search.matches.length) % this.search.matches.length;
+                this.elements.searchMatches.textContent =
+                    `${this.search.currentMatchIndex + 1} / ${this.search.matches.length}`;
+                this.jumpToMatch(this.search.currentMatchIndex);
+            }
+
+            jumpToMatch(matchIndex) {
+                const sentenceIndex = this.search.matches[matchIndex];
+                this.currentIndex = sentenceIndex;
+                this.render();
+            }
+
+            highlightSearchMatches(text) {
+                if (!this.search.isActive || !this.search.query || this.search.matches.length === 0) {
+                    return text;
+                }
+
+                // Create a case-insensitive regex to find all occurrences
+                const regex = new RegExp(`(${this.escapeRegex(this.search.query)})`, 'gi');
+                return text.replace(regex, '<span class="search-highlight">$1</span>');
+            }
+
+            escapeRegex(str) {
+                return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             }
 
             saveToStorage() {
