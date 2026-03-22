@@ -837,7 +837,6 @@
                 if (!text) return [];
 
                 // Split on sentence boundaries while preserving abbreviations
-                // This regex looks for . ! ? followed by space or end, but not after common abbreviations
                 const sentences = [];
                 const parts = text.split(/([.!?]+(?:\s+|$))/);
 
@@ -849,8 +848,24 @@
                     if (i % 2 === 1) { // Odd indices are the delimiters
                         const trimmed = currentSentence.trim();
 
-                        // Check for abbreviations at the end
-                        const isAbbreviation = /\b(Mr|Mrs|Ms|Dr|Prof|Sr|Jr|vs|etc|e\.g|i\.e|Fig|Vol|Inc|Ltd|Corp|Ave|St|Rd|Blvd)\.\s*$/i.test(trimmed);
+                        // Enhanced abbreviation detection
+                        const isSingleWordAbbreviation = /\b(Mr|Mrs|Ms|Dr|Prof|Sr|Jr|vs|etc|e\.g|i\.e|Fig|Vol|Inc|Ltd|Corp|Ave|St|Rd|Blvd)\.\s*$/i.test(trimmed);
+
+                        // Check for multi-period abbreviations (e.g., J.P.Morgan, U.S.A., Ph.D.)
+                        // Matches patterns like: capital letter followed by period, repeated, possibly ending with a capital letter or word
+                        const isMultiPeriodAbbreviation = /\b([A-Z]\.){2,}([A-Z][a-z]*)?\.?\s*$/i.test(trimmed);
+
+                        // Check for initials (e.g., J.K. Rowling, T.S. Eliot)
+                        const isInitials = /\b([A-Z]\.){1,}\s+[A-Z][a-z]+\.?\s*$/i.test(trimmed);
+
+                        // Check for decimal numbers (e.g., 3.14)
+                        const isDecimalNumber = /\d+\.\d*\s*$/.test(trimmed);
+
+                        // Check if period is part of a URL or email
+                        const isUrlOrEmail = /(https?:\/\/[^\s]+|[^\s]+@[^\s]+\.[^\s]+)\.\s*$/.test(trimmed);
+
+                        const isAbbreviation = isSingleWordAbbreviation || isMultiPeriodAbbreviation ||
+                                              isInitials || isDecimalNumber || isUrlOrEmail;
 
                         if (!isAbbreviation && trimmed) {
                             sentences.push(trimmed);
