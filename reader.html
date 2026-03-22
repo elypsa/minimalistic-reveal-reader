@@ -1078,24 +1078,38 @@
                                     paragraphId: paragraphId
                                 });
                             });
-                        } else if (child.tagName === 'UL' || child.tagName === 'OL') {
-                            // Recursively process lists
+                        } else if (child.tagName === 'UL' || child.tagName === 'OL' ||
+                                   child.tagName === 'DIV' || child.tagName === 'SECTION' ||
+                                   child.tagName === 'ARTICLE' || child.tagName === 'NAV' ||
+                                   child.tagName === 'MAIN' || child.tagName === 'ASIDE') {
+                            // Recursively process container elements
                             currentParagraphId = this.processNode(child, currentChapterIndex, currentParagraphId);
+                        } else if (child.tagName === 'BR') {
+                            // Skip break tags
+                            continue;
                         } else {
-                            // For other elements, try to extract text
-                            const text = child.innerHTML.trim();
-                            if (text) {
-                                const sentencesFromElement = this.splitIntoSentences(text);
-                                const paragraphId = currentParagraphId++;
-                                sentencesFromElement.forEach(sentence => {
-                                    this.sentences.push({
-                                        text: sentence,
-                                        isHeading: false,
-                                        level: 0,
-                                        chapterIndex: currentChapterIndex,
-                                        paragraphId: paragraphId
+                            // For other elements (like SPAN, EM, STRONG), try to extract text
+                            // Only process if it has direct text content (not nested elements with headings)
+                            const hasBlockElements = child.querySelector('h1, h2, h3, h4, h5, h6, p, div, section');
+                            if (hasBlockElements) {
+                                // Has nested block elements, recurse into it
+                                currentParagraphId = this.processNode(child, currentChapterIndex, currentParagraphId);
+                            } else {
+                                // No block elements, treat as inline text
+                                const text = child.innerHTML.trim();
+                                if (text) {
+                                    const sentencesFromElement = this.splitIntoSentences(text);
+                                    const paragraphId = currentParagraphId++;
+                                    sentencesFromElement.forEach(sentence => {
+                                        this.sentences.push({
+                                            text: sentence,
+                                            isHeading: false,
+                                            level: 0,
+                                            chapterIndex: currentChapterIndex,
+                                            paragraphId: paragraphId
+                                        });
                                     });
-                                });
+                                }
                             }
                         }
                     }
@@ -1253,7 +1267,7 @@
                 this.chapters.forEach((chapter, index) => {
                     const tocItem = document.createElement('div');
                     tocItem.className = `toc-item level-${Math.min(chapter.level, 3)}`;
-                    tocItem.textContent = chapter.title;
+                    tocItem.textContent = chapter.text;
                     tocItem.dataset.chapterIndex = index;
 
                     // Add click handler to jump to chapter
