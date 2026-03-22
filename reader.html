@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Progressive Reveal Reader</title>
     <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3/dist/jszip.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -472,8 +473,8 @@
 <body>
     <div id="file-picker">
         <h1>Progressive Reveal Reader</h1>
-        <p>Select a markdown file to begin reading</p>
-        <input type="file" id="file-input" accept=".md,.markdown,.txt" />
+        <p>Select a markdown or EPUB file to begin reading</p>
+        <input type="file" id="file-input" accept=".md,.markdown,.txt,.epub" />
     </div>
 
     <div id="reader">
@@ -737,10 +738,100 @@
                 if (!file) return;
 
                 this.fileName = file.name;
-                const text = await file.text();
-                this.processMarkdown(text);
+
+                // Check if file is EPUB based on extension
+                const isEpub = file.name.toLowerCase().endsWith('.epub');
+
+                if (isEpub) {
+                    await this.processEpub(file);
+                } else {
+                    const text = await file.text();
+                    this.processMarkdown(text);
+                }
+
                 this.showReader();
                 this.render();
+            }
+
+            async processEpub(file) {
+                try {
+                    // Load the EPUB file as a ZIP archive
+                    const zip = await JSZip.loadAsync(file);
+
+                    // Step 1: Read container.xml to find the content.opf location
+                    const containerXml = await zip.file('META-INF/container.xml').async('string');
+                    const containerDoc = new DOMParser().parseFromString(containerXml, 'text/xml');
+                    const rootfilePath = containerDoc.querySelector('rootfile').getAttribute('full-path');
+
+                    // Step 2: Read content.opf to get the spine (reading order)
+                    const contentOpf = await zip.file(rootfilePath).async('string');
+                    const opfDoc = new DOMParser().parseFromString(contentOpf, 'text/xml');
+
+                    // Get the directory containing content.opf (for resolving relative paths)
+                    const opfDir = rootfilePath.substring(0, rootfilePath.lastIndexOf('/') + 1);
+
+                    // Extract manifest items (id -> href mapping)
+                    const manifest = {};
+                    opfDoc.querySelectorAll('manifest item').forEach(item => {
+                        manifest[item.getAttribute('id')] = item.getAttribute('href');
+                    });
+
+                    // Step 3: Get spine items in order (these define reading sequence)
+                    const spineItems = Array.from(opfDoc.querySelectorAll('spine itemref'));
+                    const contentFiles = spineItems.map(item => {
+                        const idref = item.getAttribute('idref');
+                        return manifest[idref];
+                    }).filter(href => href); // Filter out any undefined entries
+
+                    // Step 4: Extract and combine HTML content
+                    let combinedHtml = '';
+                    for (const contentFile of contentFiles) {
+                        const fullPath = opfDir + contentFile;
+                        const htmlFile = zip.file(fullPath);
+
+                        if (htmlFile) {
+                            const htmlContent = await htmlFile.async('string');
+                            // Parse HTML and extract body content
+                            const parser = new DOMParser();
+                            const doc = parser.parseFromString(htmlContent, 'text/html');
+                            const body = doc.querySelector('body');
+
+                            if (body) {
+                                combinedHtml += body.innerHTML + '\n';
+                            } else {
+                                // If no body tag, use entire content
+                                combinedHtml += htmlContent + '\n';
+                            }
+                        }
+                    }
+
+                    // Step 5: Process the combined HTML (similar to processMarkdown but skip markdown parsing)
+                    const temp = document.createElement('div');
+                    temp.innerHTML = combinedHtml;
+
+                    this.sentences = [];
+                    this.chapters = [];
+
+                    // Process each node
+                    this.processNode(temp);
+
+                    // Remove empty sentences
+                    this.sentences = this.sentences.filter(s => s.text.trim().length > 0);
+
+                    // If no sentences, add a placeholder
+                    if (this.sentences.length === 0) {
+                        this.sentences.push({ text: 'No content found', isHeading: false, level: 0, chapterIndex: 0 });
+                    }
+
+                } catch (error) {
+                    console.error('Error processing EPUB:', error);
+                    this.sentences = [{
+                        text: `Error loading EPUB: ${error.message}. Please try another file.`,
+                        isHeading: false,
+                        level: 0,
+                        chapterIndex: 0
+                    }];
+                }
             }
 
             processMarkdown(text) {
