@@ -1,4 +1,4 @@
-# ChapterPal Lite
+# Reveal
 
 ![This is the caption for the image](logo.png)
 

@@ -723,6 +723,57 @@
             color: #aaa;
         }
 
+        /* Force light mode for file picker (landing page) */
+        body.sepia #file-picker,
+        body.night #file-picker {
+            background: #fafafa !important;
+        }
+
+        body.sepia #file-picker h1,
+        body.night #file-picker h1 {
+            color: #222 !important;
+        }
+
+        body.sepia #file-picker p,
+        body.night #file-picker p {
+            color: #666 !important;
+        }
+
+        body.sepia #file-picker #file-input,
+        body.night #file-picker #file-input {
+            background: white !important;
+            color: #333 !important;
+            border-color: #ccc !important;
+        }
+
+        body.sepia #file-picker #file-input:hover,
+        body.night #file-picker #file-input:hover {
+            border-color: #888 !important;
+            background: #f5f5f5 !important;
+        }
+
+        body.sepia #file-picker #shortcuts-overview,
+        body.night #file-picker #shortcuts-overview {
+            background: rgba(0, 0, 0, 0.02) !important;
+        }
+
+        body.sepia #file-picker #shortcuts-overview h3,
+        body.night #file-picker #shortcuts-overview h3 {
+            color: #888 !important;
+        }
+
+        body.sepia #file-picker .shortcut-key,
+        body.night #file-picker .shortcut-key {
+            background: white !important;
+            border-color: #ddd !important;
+            color: #555 !important;
+        }
+
+        body.sepia #file-picker .shortcut-description,
+        body.night #file-picker .shortcut-description {
+            color: #666 !important;
+        }
+
         /* App Logo */
         #app-logo {
             max-height: 400px;
