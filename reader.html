@@ -722,13 +722,124 @@
         body.night p {
             color: #aaa;
         }
+
+        /* App Logo */
+        #app-logo {
+            max-height: 400px;
+            width: auto;
+            margin-bottom: 2rem;
+            display: block;
+        }
+
+        /* Shortcuts Overview */
+        #shortcuts-overview {
+            margin-top: 3rem;
+            padding: 2rem;
+            background: rgba(0, 0, 0, 0.02);
+            border-radius: 12px;
+            max-width: 500px;
+        }
+
+        #shortcuts-overview h3 {
+            font-size: 1rem;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 1.5rem;
+            font-weight: normal;
+        }
+
+        .shortcuts-grid {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 0.75rem 1.5rem;
+            align-items: center;
+        }
+
+        .shortcut-key {
+            font-family: 'Courier New', monospace;
+            background: white;
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            border: 1px solid #ddd;
+            color: #555;
+            text-align: center;
+            min-width: 60px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .shortcut-description {
+            font-size: 0.95rem;
+            color: #666;
+            font-family: Georgia, serif;
+        }
+
+        /* Sepia theme for shortcuts */
+        body.sepia #shortcuts-overview {
+            background: rgba(91, 70, 54, 0.08);
+        }
+
+        body.sepia #shortcuts-overview h3 {
+            color: #8b7355;
+        }
+
+        body.sepia .shortcut-key {
+            background: #f4ecd8;
+            border-color: #d3c4a8;
+            color: #5b4636;
+        }
+
+        body.sepia .shortcut-description {
+            color: #5b4636;
+        }
+
+        /* Night theme for shortcuts */
+        body.night #shortcuts-overview {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        body.night #shortcuts-overview h3 {
+            color: #888;
+        }
+
+        body.night .shortcut-key {
+            background: #2a2a2a;
+            border-color: #444;
+            color: #d4d4d4;
+        }
+
+        body.night .shortcut-description {
+            color: #aaa;
+        }
     </style>
 </head>
 <body>
     <div id="file-picker">
+        <img id="app-logo" src="logo.png" alt="App Logo" onerror="this.style.display='none'">
         <h1>Progressive Reveal Reader</h1>
         <p>Select a markdown or EPUB file to begin reading</p>
         <input type="file" id="file-input" accept=".md,.markdown,.txt,.epub" />
+
+        <div id="shortcuts-overview">
+            <h3>Keyboard Shortcuts</h3>
+            <div class="shortcuts-grid">
+                <div class="shortcut-key">Space</div>
+                <div class="shortcut-description">Next sentence</div>
+
+                <div class="shortcut-key">←</div>
+                <div class="shortcut-description">Previous sentence</div>
+
+                <div class="shortcut-key">/</div>
+                <div class="shortcut-description">Search</div>
+
+                <div class="shortcut-key">T</div>
+                <div class="shortcut-description">Table of contents</div>
+
+                <div class="shortcut-key">Esc</div>
+                <div class="shortcut-description">Close panels or reset</div>
+            </div>
+        </div>
     </div>
 
     <div id="reader">
