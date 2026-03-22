@@ -384,6 +384,30 @@
             font-size: 0.85rem;
         }
 
+        #search-button {
+            position: fixed;
+            top: 20px;
+            right: 80px;
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid #ccc;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            font-size: 22px;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 101;
+            transition: all 0.3s ease;
+        }
+
+        #search-button:hover {
+            background: rgba(255, 255, 255, 1);
+            border-color: #888;
+            transform: scale(1.1);
+        }
+
         #settings-button {
             position: fixed;
             top: 20px;
@@ -497,7 +521,8 @@
         body.sepia #settings-panel,
         body.sepia #toc-button,
         body.sepia #toc-panel,
-        body.sepia #search-bar {
+        body.sepia #search-bar,
+        body.sepia #search-button {
             background: rgba(244, 236, 216, 0.98);
             color: #5b4636;
         }
@@ -582,7 +607,8 @@
         body.night #settings-panel,
         body.night #toc-button,
         body.night #toc-panel,
-        body.night #search-bar {
+        body.night #search-bar,
+        body.night #search-button {
             background: rgba(30, 30, 30, 0.98);
             color: #d4d4d4;
             border-color: #333;
@@ -662,6 +688,14 @@
             border-color: #d4d4d4;
         }
 
+        body.night #search-button {
+            border-color: #444;
+        }
+
+        body.night #search-button:hover {
+            border-color: #666;
+        }
+
         body.night #settings-button {
             border-color: #444;
         }
@@ -704,6 +738,7 @@
             <span id="search-matches"></span>
         </div>
         <button id="toc-button">☰</button>
+        <button id="search-button">🔍</button>
         <button id="settings-button">⚙</button>
         <div id="toc-panel">
             <h2>Table of Contents</h2>
@@ -791,6 +826,7 @@
                     searchBar: document.getElementById('search-bar'),
                     searchInput: document.getElementById('search-input'),
                     searchMatches: document.getElementById('search-matches'),
+                    searchButton: document.getElementById('search-button'),
                     settingsButton: document.getElementById('settings-button'),
                     settingsPanel: document.getElementById('settings-panel'),
                     fontSizeSlider: document.getElementById('font-size'),
@@ -818,6 +854,16 @@
                     this.elements.tocPanel.classList.toggle('open');
                     // Close settings if open
                     this.elements.settingsPanel.classList.remove('open');
+                    // Close search if open
+                    this.closeSearch();
+                });
+
+                // Search button toggle
+                this.elements.searchButton.addEventListener('click', () => {
+                    this.openSearch();
+                    // Close other panels if open
+                    this.elements.tocPanel.classList.remove('open');
+                    this.elements.settingsPanel.classList.remove('open');
                 });
 
                 // Settings button toggle
@@ -825,6 +871,8 @@
                     this.elements.settingsPanel.classList.toggle('open');
                     // Close TOC if open
                     this.elements.tocPanel.classList.remove('open');
+                    // Close search if open
+                    this.closeSearch();
                 });
 
                 // Close panels when clicking outside
@@ -1332,6 +1380,7 @@
                 this.elements.reader.style.display = 'block';
                 this.elements.settingsButton.style.display = 'flex';
                 this.elements.tocButton.style.display = 'flex';
+                this.elements.searchButton.style.display = 'flex';
                 this.buildTOC();
             }
 
@@ -1341,6 +1390,7 @@
                 this.elements.fileInput.value = '';
                 this.elements.settingsButton.style.display = 'none';
                 this.elements.tocButton.style.display = 'none';
+                this.elements.searchButton.style.display = 'none';
                 this.elements.settingsPanel.classList.remove('open');
                 this.elements.tocPanel.classList.remove('open');
             }
