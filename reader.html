@@ -187,6 +187,13 @@
             border-radius: 4px;
             overflow: hidden;
             position: relative;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        #progress-track:hover {
+            height: 12px;
+            background: #d0d0d0;
         }
 
         #progress-fill {
@@ -195,6 +202,7 @@
             border-radius: 4px;
             transition: width 0.3s ease;
             width: 0%;
+            pointer-events: none;
         }
 
         #progress-percentage {
@@ -464,6 +472,10 @@
             background: #d3c4a8;
         }
 
+        body.sepia #progress-track:hover {
+            background: #c3b498;
+        }
+
         body.sepia #progress-fill {
             background: linear-gradient(90deg, #8b7355, #5b4636);
         }
@@ -526,6 +538,10 @@
 
         body.night #progress-track {
             background: #333;
+        }
+
+        body.night #progress-track:hover {
+            background: #444;
         }
 
         body.night #progress-fill {
@@ -678,6 +694,7 @@
                     content: document.getElementById('content'),
                     progressBar: document.getElementById('progress-bar'),
                     progressInfo: document.getElementById('progress-info'),
+                    progressTrack: document.getElementById('progress-track'),
                     progressFill: document.getElementById('progress-fill'),
                     progressPercentage: document.getElementById('progress-percentage'),
                     tocButton: document.getElementById('toc-button'),
@@ -731,6 +748,22 @@
                         this.elements.tocPanel.classList.contains('open')) {
                         this.elements.tocPanel.classList.remove('open');
                     }
+                });
+
+                // Progress bar click to jump
+                this.elements.progressTrack.addEventListener('click', (e) => {
+                    const rect = this.elements.progressTrack.getBoundingClientRect();
+                    const clickX = e.clientX - rect.left;
+                    const percentage = clickX / rect.width;
+
+                    // Calculate target sentence index
+                    const targetIndex = Math.floor(percentage * this.sentences.length);
+
+                    // Clamp to valid range
+                    this.currentIndex = Math.max(0, Math.min(targetIndex, this.sentences.length - 1));
+
+                    // Render the new position
+                    this.render();
                 });
 
                 // Font size slider
