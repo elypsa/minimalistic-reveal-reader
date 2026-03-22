@@ -1,5 +1,7 @@
 # Reveal
 
+[>>> Use Reveal Here<<<<]([[https://www.google.com](https://elypsa.github.io/minimalistic-reveal-reader/)](https://elypsa.github.io/minimalistic-reveal-reader/))
+
 ![This is the caption for the image](logo.png)
 
 A minimalist progressive reveal reader for distraction-free reading of markdown and EPUB files.
