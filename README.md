@@ -1,6 +1,6 @@
 # Reveal
 
-[>>> Use Reveal Here<<<<]([[https://www.google.com](https://elypsa.github.io/minimalistic-reveal-reader/)](https://elypsa.github.io/minimalistic-reveal-reader/))
+[>>> Use Reveal Here<<<<](https://elypsa.github.io/minimalistic-reveal-reader/)
 
 ![This is the caption for the image](logo.png)
 
