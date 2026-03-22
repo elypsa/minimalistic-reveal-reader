@@ -1,5 +1,7 @@
 # ChapterPal Lite
 
+![This is the caption for the image](logo.png)
+
 A minimalist progressive reveal reader for distraction-free reading of markdown and EPUB files.
 
 ## Features
